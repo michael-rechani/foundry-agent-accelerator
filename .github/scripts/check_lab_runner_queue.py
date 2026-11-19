@@ -12,7 +12,7 @@ from check_lab_image_approval import GitHubReader
 from check_state_backend import CheckError
 
 REPOSITORY = "michael-rechani/foundry-agent-accelerator"
-WORKFLOW_PATH = ".github/workflows/start-private-runner-once-20261119-reissued.yml"
+WORKFLOW_PATH = ".github/workflows/start-private-runner-once-20261119-api-ready.yml"
 ACTIVE_RUN_STATUSES = ("queued", "in_progress", "waiting", "pending")
 JOB_STATUSES = {"queued", "in_progress", "waiting", "pending", "completed"}
 RUN_ID = re.compile(r"[1-9][0-9]*")
@@ -75,6 +75,8 @@ def _verify_job_inventory(payload: object, context: StartContext, run_id: int) -
     seen_ids: set[int] = set()
     current_jobs = []
     smoke_jobs = []
+    own_run = run_id == int(context.run_id)
+    smoke_labels = {"self-hosted", "linux", "lab-runner"}
     expected_run_url = f"https://api.github.com/repos/{REPOSITORY}/actions/runs/{run_id}"
     for job in jobs:
         if not isinstance(job, dict) or not (
@@ -91,7 +93,7 @@ def _verify_job_inventory(payload: object, context: StartContext, run_id: int) -
         ):
             raise CheckError("GitHub workflow job evidence is malformed.")
         seen_ids.add(job["id"])
-        if job["name"] == context.job:
+        if own_run and job["name"] == context.job:
             if not (
                 job.get("head_sha") == context.sha
                 and job.get("head_branch") == "main"
@@ -99,24 +101,25 @@ def _verify_job_inventory(payload: object, context: StartContext, run_id: int) -
             ):
                 raise CheckError("The current runner-start job does not match its run.")
             current_jobs.append(job)
-        elif job.get("status") != "completed":
-            is_lab_runner_job = (
-                "self-hosted" in job["labels"] and "lab-runner" in job["labels"]
-            )
-            if run_id == int(context.run_id) and job.get("name") == "smoke":
-                if job.get("status") != "queued" or not is_lab_runner_job:
-                    raise CheckError("The current runner smoke job is not safely queued.")
-                smoke_jobs.append(job)
-            elif is_lab_runner_job:
-                raise CheckError("Another active job is queued for the Lab runner.")
+        elif own_run and job["name"] == "smoke":
+            if (
+                job["status"] not in ("queued", "waiting", "pending")
+                or len(job["labels"]) != len(smoke_labels)
+                or set(job["labels"]) != smoke_labels
+            ):
+                raise CheckError("The current runner smoke job has unexpected status or labels.")
+            smoke_jobs.append(job)
+        elif job["status"] != "completed" and {"self-hosted", "lab-runner"} <= set(job["labels"]):
+            raise CheckError("Another active job is queued for the Lab runner.")
 
-    if run_id == int(context.run_id) and context.job == "start-runner":
+    if own_run:
         if (
             len(current_jobs) != 1
             or current_jobs[0]["status"] not in ("queued", "in_progress")
-            or len(smoke_jobs) != 1
         ):
-            raise CheckError("Expected one queued or in-progress runner-start job and one queued smoke job.")
+            raise CheckError("Expected one queued or in-progress runner-start job.")
+        if len(smoke_jobs) > 1:
+            raise CheckError("Expected at most one runner smoke job.")
 
 
 def _verify_current_run(run: dict, context: StartContext) -> None:

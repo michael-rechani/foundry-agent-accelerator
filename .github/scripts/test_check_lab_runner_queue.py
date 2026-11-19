@@ -154,13 +154,13 @@ class QueueContractTests(unittest.TestCase):
         with self.assertRaisesRegex(CheckError, "job inventory"):
             self.check()
 
-    def test_current_job_is_bound_to_exact_run_and_unique_smoke(self):
+    def test_current_job_is_bound_to_exact_run(self):
         for mutation in (
             lambda jobs: jobs[0].update(head_sha="c" * 40),
             lambda jobs: jobs[0].update(head_branch="feature"),
             lambda jobs: jobs[0].update(run_url="https://api.github.com/repos/other/repo/actions/runs/42"),
-            lambda jobs: jobs.append(dict(jobs[1], id=103)),
-            lambda jobs: jobs.pop(),
+            lambda jobs: jobs.append(dict(jobs[0], id=103)),
+            lambda jobs: jobs.pop(0),
         ):
             with self.subTest(mutation=mutation), self.assertRaises(CheckError):
                 self.setUp()
@@ -177,13 +177,54 @@ class QueueContractTests(unittest.TestCase):
                 self.state["jobs"][RUN_ID][0]["status"] = status
                 self.check()
 
-    def test_consumed_workflow_path_is_rejected(self):
-        old_path = ".github/workflows/start-private-runner-once-20261119.yml"
-        with self.assertRaisesRegex(CheckError, "context"):
-            self.check(context(workflow_ref=f"{REPOSITORY}/{old_path}@refs/heads/main"))
-        self.state["runs"]["in_progress"][0]["path"] = old_path
-        with self.assertRaisesRegex(CheckError, "current workflow run"):
+    def test_dependent_smoke_job_may_not_have_materialized(self):
+        self.state["jobs"][RUN_ID].pop()
+        self.check()
+
+    def test_one_smoke_job_may_be_queued_waiting_or_pending(self):
+        for status in ("queued", "waiting", "pending"):
+            with self.subTest(status=status):
+                self.state["jobs"][RUN_ID][1]["status"] = status
+                self.check()
+
+    def test_duplicate_smoke_jobs_reject(self):
+        jobs = self.state["jobs"][RUN_ID]
+        jobs.append(dict(jobs[1], id=103))
+        with self.assertRaisesRegex(CheckError, "at most one"):
             self.check()
+
+    def test_same_named_jobs_in_other_runs_do_not_get_an_exemption(self):
+        self.state["runs"]["queued"] = [run(43, status="queued")]
+        for name in ("smoke", "start-runner"):
+            with self.subTest(name=name), self.assertRaisesRegex(CheckError, "Another active job"):
+                self.state["jobs"][43] = [job(201, 43, name, "queued", ["self-hosted", "linux", "lab-runner"])]
+                self.check()
+
+    def test_completed_or_unexpected_smoke_job_states_reject(self):
+        for status in ("completed", "in_progress", "unexpected"):
+            with self.subTest(status=status), self.assertRaises(CheckError):
+                self.state["jobs"][RUN_ID][1]["status"] = status
+                self.check()
+
+    def test_smoke_job_requires_exact_runner_labels(self):
+        for labels in (
+            ["self-hosted", "lab-runner"],
+            ["self-hosted", "linux", "lab-runner", "extra"],
+            ["self-hosted", "linux", "lab-runner", "linux"],
+        ):
+            with self.subTest(labels=labels), self.assertRaisesRegex(CheckError, "unexpected status or labels"):
+                self.state["jobs"][RUN_ID][1]["labels"] = labels
+                self.check()
+
+    def test_consumed_workflow_paths_are_rejected(self):
+        for suffix in ("", "-reissued"):
+            old_path = f".github/workflows/start-private-runner-once-20261119{suffix}.yml"
+            with self.subTest(path=old_path):
+                with self.assertRaisesRegex(CheckError, "context"):
+                    self.check(context(workflow_ref=f"{REPOSITORY}/{old_path}@refs/heads/main"))
+                self.state["runs"]["in_progress"][0]["path"] = old_path
+                with self.assertRaisesRegex(CheckError, "current workflow run"):
+                    self.check()
 
     def test_exact_main_validate_success_is_required(self):
         for field, value in (("conclusion", "failure"), ("head_sha", "c" * 40),
