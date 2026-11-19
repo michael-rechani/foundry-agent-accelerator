@@ -30,7 +30,7 @@ concurrency:
 jobs:
   # This read-only job does not start the private runner or request Azure credentials.
   validate-source:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && inputs.confirm_rollout == true
     timeout-minutes: 35
     runs-on: ubuntu-24.04
     permissions:
@@ -43,11 +43,12 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           SOURCE_SHA: ${{ github.sha }}
           REVIEWED_SOURCE_SHA: ${{ inputs.reviewed_source_sha }}
+        # Confirmation is enforced by the job condition, not by Bash.
           CONFIRM_ROLOUT: ${{ inputs.confirm_rollout }}
         run: |
           set -euo pipefail
-          [[ "$REVIEWED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ && "$REVIEWED_SOURCE_SHA" == "$SOURCE_SHA" && "$CONFIRM_ROLLOUT" == "true" ]] || {
-            echo "::error::Select the reviewed main commit and confirm the staged rollout inventory."
+          [[ "$REVIEWED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ && "$REVIEWED_SOURCE_SHA" == "$SOURCE_SHA" ]] || {
+            echo "::error::Select the reviewed main commit."
             exit 1
           }
           deadline=$((SECONDS + 1800))
@@ -95,7 +96,7 @@ jobs:
       LAB_CONTAINER_APP: ${{ vars.LAB_CONTAINER_APP }}
       REVIEWED_SOURCE_SHA: ${{ inputs.reviewed_source_sha }}
       EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
-      CONFIRM_ROLLOUT: ${{ inputs.confirm_rollout }}
+      CONFIRM_ROLLOUT: ${{ inputs.confirm_rollout == true && 'true' || 'false' }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

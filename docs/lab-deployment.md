@@ -761,8 +761,9 @@ dispatch comes from the repository owner on `main` through this exact workflow.
 
 The existing rollout confirmations are still required: the exact reviewed
 source SHA, the recorded current immutable image digest, and the explicit
-confirmation checkbox. That checkbox is an operator acknowledgment, not
-independent approval, and does not prove platform, Lab, hosted-agent routes,
+confirmation checkbox. If confirmation is omitted or unchecked, source
+validation and deployment are skipped. The checkbox is an operator
+acknowledgment, not independent approval, and does not prove platform, Lab, hosted-agent routes,
 recovery, or billing readiness. The deployment job keeps its existing
 live-image checks before registry push and app update, plus its guarded
 recovery/readback path. Owner authorization does not bypass those checks.

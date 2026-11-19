@@ -254,6 +254,30 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("runs-on: [self-hosted, linux, lab-runner]", WORKFLOW)
         self.assertIn("environment: lab-deploy", WORKFLOW)
 
+    def test_rollout_confirmation_gates_preflight_and_binds_deploy_string(self):
+        self.assertRegex(
+            WORKFLOW, r"(?m)^      confirm_rollout:\n        description: [^\n]+\n"
+            r"        required: true\n        type: boolean\n        default: false$",
+        )
+        preflight, deploy = WORKFLOW.split("\n  deploy:\n", 1)
+        self.assertRegex(
+            preflight, r"(?m)^  validate-source:\n"
+            r"    if: github\.ref == 'refs/heads/main' && inputs\.confirm_rollout == true$",
+        )
+        self.assertNotIn("CONFIRM_ROLLOUT", preflight)
+        self.assertRegex(
+            deploy, r"(?m)^    needs: validate-source\n(?:    #[^\n]*\n)?"
+            r"    if: >-\n      needs\.validate-source\.result == 'success' &&$",
+        )
+        self.assertIn(
+            "\n      CONFIRM_ROLLOUT: ${{ inputs.confirm_rollout == true && 'true' || 'false' }}\n",
+            deploy,
+        )
+        env = environment()
+        del env["CONFIRM_ROLLOUT"]
+        with self.assertRaisesRegex(guard.CheckError, "must be explicitly confirmed"):
+            guard.validate_dispatch(env)
+
     def test_existing_lab_apply_and_image_release_share_concurrency(self):
         self.assertRegex(WORKFLOW, r"(?s)concurrency:\s+group: deploy-lab\s+cancel-in-progress: false")
         self.assertRegex(APPLY_WORKFLOW, r"(?s)concurrency:\s+group: deploy-lab\s+cancel-in-progress: false")
