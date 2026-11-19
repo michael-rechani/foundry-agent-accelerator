@@ -95,9 +95,8 @@ class FakeReader:
 
     def get_json(self, path, *, kind):
         self.paths.append((path, kind))
-        if path == (
+        if path.startswith(
             f"/repos/{REPOSITORY}/actions/workflows/validate.yml/runs?"
-            f"head_sha={SHA}&branch=main&event=push&per_page=100"
         ):
             return self.state["validation"]
         for status in ACTIVE_RUN_STATUSES:
@@ -185,7 +184,7 @@ class QueueContractTests(unittest.TestCase):
             f"head_sha={SHA}&branch=main&event=push&per_page=100"
         ))
         self.assertEqual(
-            paths[1:5],
+            [path for path in paths if "/actions/runs?status=" in path],
             [
                 f"/repos/{REPOSITORY}/actions/runs?status={status}&per_page=100"
                 for status in ACTIVE_RUN_STATUSES

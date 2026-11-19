@@ -110,7 +110,7 @@ def _verify_job_inventory(payload: object, context: StartContext, run_id: int) -
             elif is_lab_runner_job:
                 raise CheckError("Another active job is queued for the Lab runner.")
 
-    if context.job == "start-runner":
+    if run_id == int(context.run_id) and context.job == "start-runner":
         if (
             len(current_jobs) != 1
             or current_jobs[0].get("status") != "in_progress"
