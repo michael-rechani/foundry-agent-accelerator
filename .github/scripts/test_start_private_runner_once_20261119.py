@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest import mock
 
 import test_start_private_runner_once_20261107 as prior
-import test_start_private_runner as base
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = (ROOT / ".github" / "workflows" /
@@ -41,15 +40,13 @@ class SharedWorkflowSetup:
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.previous = (
-            prior.WORKFLOW, prior.START, prior.SMOKE, prior.SCRIPT,
-            prior.GATE, prior.MOCKS,
+        cls.candidate_previous = (
+            prior.WORKFLOW, prior.START, prior.SMOKE, prior.SCRIPT, prior.MOCKS,
         )
         cls.previous_context = prior.CONTEXT
-        cls.previous_base = base.SCRIPT, base.MOCKS
         prior.WORKFLOW, prior.START, prior.SMOKE = WORKFLOW, START, SMOKE
-        prior.SCRIPT, prior.GATE, prior.MOCKS = SCRIPT, GATE, MOCKS
-        base.SCRIPT, base.MOCKS = SCRIPT, MOCKS
+        prior.SCRIPT, prior.MOCKS = SCRIPT, MOCKS
+        prior.original.SCRIPT, prior.original.MOCKS = SCRIPT, MOCKS
         prior.CONTEXT = prior.CONTEXT | {
             "GITHUB_WORKFLOW_REF": (
                 "michael-rechani/foundry-agent-accelerator/"
@@ -60,13 +57,23 @@ class SharedWorkflowSetup:
     @classmethod
     def tearDownClass(cls):
         (prior.WORKFLOW, prior.START, prior.SMOKE, prior.SCRIPT,
-         prior.GATE, prior.MOCKS) = cls.previous
+         prior.MOCKS) = cls.candidate_previous
         prior.CONTEXT = cls.previous_context
-        base.SCRIPT, base.MOCKS = cls.previous_base
         super().tearDownClass()
 
 
 class WorkflowContractTests(SharedWorkflowSetup, prior.WorkflowContractTests):
+    def test_manual_main_only_with_existing_environment(self):
+        trigger = WORKFLOW.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertRegex(trigger, r"^  workflow_dispatch:\n")
+        self.assertNotRegex(trigger, r"\b(push|pull_request|schedule|workflow_call):")
+        self.assertIn("required: true\n        type: string", trigger)
+        self.assertEqual(WORKFLOW.count(GATE), 2)
+        self.assertIn("environment: lab-deploy", START)
+        self.assertIn("timeout-minutes: 10", START)
+        self.assertIn("runs-on: ubuntu-24.04", START)
+        self.assertIn("cancel-in-progress: false", WORKFLOW)
+
     def test_owner_authorized_one_shot_is_new_and_not_independent_review(self):
         self.assertIn("name: Start private runner once 20261119", WORKFLOW)
         self.assertIn("This is one owner-authorized wake, not independent review.", WORKFLOW)
@@ -137,7 +144,7 @@ class ShellTests(SharedWorkflowSetup, prior.ShellTests):
                 self.assertEqual(calls.count("queue-check\n"), 1)
 
     def test_checked_out_source_must_equal_reviewed_sha(self):
-        with mock.patch.object(base, "MOCKS", MOCKS.replace(
+        with mock.patch.object(prior.original, "MOCKS", MOCKS.replace(
             'git() { [[ "$*" == "rev-parse HEAD" ]] || return 99; printf \'%s\\n\' "$GITHUB_SHA"; }',
             'git() { [[ "$*" == "rev-parse HEAD" ]] || return 99; printf \'%040d\\n\' 2; }',
         )):
