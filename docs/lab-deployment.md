@@ -800,7 +800,7 @@ The reader binds API evidence to the unique in-progress deploy job, run, first
 attempt, exact source SHA, configured independent reviewer, review comment,
 and immutable recovery image. The workflow-run API's `path` is only the file
 path (for example, `.github/workflows/deploy-lab.yml`); it does not include
-the dispatch ref. `head_branch: main` is not proof of
+the dispatch ref, as observed in run `42327760090`. `head_branch: main` is not proof of
 `github.ref == refs/heads/main`, and finding a unique in-progress `deploy` job
 does not prove the verifier itself is running in that job. A future caller
 must obtain trusted GitHub Actions context from the executing job and verify
@@ -819,7 +819,7 @@ timestamp or attempt field; the reader uses a run-age bound, not an asserted
 review time, and cannot enforce durable single-use. A repeat call within the
 same attempt succeeds on identical evidence.
 The mocked-only tests passed on a GitHub-hosted runner in
-[run 44578137181](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/44578137181);
+[run 44579005080](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/44579005080);
 they did not call GitHub APIs or access credentials.
 
 For a separate token capability check, `.github/probes/lab-approval-read-probe.yml`
