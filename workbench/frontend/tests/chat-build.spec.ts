@@ -298,6 +298,48 @@ async function openPromptReview(page: Page) {
   return card.getByRole('group', { name: 'Create this agent' })
 }
 
+test('invalid prompt-only input cannot reserve a creation receipt', async ({
+  page,
+}) => {
+  const state = await openCreation(page, {
+    hash: '#chat',
+    designerAnswer: noTemplateAnswer.replace(
+      spec.name,
+      'Renewal\\u0007 Checklist Helper',
+    ),
+  })
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Help people renew benefits')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await page.getByRole('button', { name: 'Review prompt-only agent' }).click()
+  const panel = page.getByRole('group', { name: 'Create this agent' })
+  const create = panel.getByRole('button', { name: 'Create in Foundry' })
+  await panel.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+  await panel.getByLabel(/I confirm creating a shared Foundry agent/).check()
+  await expect(create).toBeDisabled({ timeout: 1500 })
+  await expect(panel).toContainText('printable characters')
+  const name = panel.getByLabel('Agent name')
+  await name.fill('  Corrected helper  ')
+  await panel.getByLabel('Task instructions').fill('\u0001'.repeat(6000))
+  await panel.getByLabel(/I confirm creating a shared Foundry agent/).check()
+  await expect(create).toBeDisabled()
+  await expect(panel).toContainText('too large to submit')
+  expect(state.posts).toHaveLength(0)
+  expect(
+    await page.evaluate(() =>
+      localStorage.getItem('foundry-lab.prompt-creation.v1'),
+    ),
+  ).toBeNull()
+
+  await panel.getByLabel('Task instructions').fill(spec.instructions)
+  await panel.getByLabel(/I confirm creating a shared Foundry agent/).check()
+  await create.click()
+  await expect(panel).toContainText('is ready in Foundry')
+  expect(state.posts).toHaveLength(1)
+  expect(state.posts[0].name).toBe('Corrected helper')
+})
+
 for (const persisted of [true, false]) {
   test(`prompt-only reload recovers an ambiguous submission (${persisted ? 'saved' : 'no record yet'})`, async ({
     page,

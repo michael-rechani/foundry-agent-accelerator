@@ -86,7 +86,8 @@
   margin: 12px 0;
   font-weight: 600;
 }
-.spec-prompt-field textarea {
+.spec-prompt-field textarea,
+.spec-prompt-field input {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -97,6 +98,8 @@
   background: var(--surface);
   font: inherit;
   font-weight: 400;
+}
+.spec-prompt-field textarea {
   resize: vertical;
 }
 .spec-prompt-try {

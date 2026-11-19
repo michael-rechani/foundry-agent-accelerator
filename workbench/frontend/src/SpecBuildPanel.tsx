@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { ArrowRight, LoaderCircle, Plus } from 'lucide-react'
 import {
   CreationError,
@@ -38,6 +38,25 @@ const stages: Record<string, string> = {
   creating: 'Publishing to Foundry',
   failed: 'Publishing did not finish',
   interrupted: 'Publishing was interrupted',
+}
+
+// Mirror the creation API's printable-name and JSON body limits before reserving a receipt.
+const nonPrintableName = /[^\p{L}\p{M}\p{N}\p{P}\p{S} ]/u
+const maxSetupBytes = 32768
+const sampleRequestId = '00000000-0000-0000-0000-000000000000'
+
+function promptPayload(
+  id: string,
+  name: string,
+  instructions: string,
+): CreatePayload {
+  return {
+    idempotency_key: id,
+    template_id: promptOnlyId,
+    name: name.trim(),
+    instructions,
+    confirm_cost: true,
+  }
 }
 
 function problemText(problem: unknown) {
@@ -102,15 +121,35 @@ export function SpecBuildPanel({
   const [notSaved, setNotSaved] = useState(false)
   const [record, setRecord] = useState<CreatedAgent | null>(null)
   const [pollPaused, setPollPaused] = useState(false)
+  const [name, setName] = useState(
+    nonPrintableName.test(spec.name) ? '' : spec.name,
+  )
   const [task, setTask] = useState(spec.instructions)
   const [trying, setTrying] = useState(false)
   const submitting = useRef(false)
   const keyField = useRef<HTMLInputElement>(null)
+  const validationId = useId()
   const promptOnly = !templateId
+  const validName =
+    !!name.trim() && [...name].length <= 80 && !nonPrintableName.test(name)
   const validTask =
-    [...task.trim()].length >= 10 &&
+    [
+      ...task.replace(
+        // oxlint-disable-next-line no-control-regex -- Python str.strip also trims U+001C through U+001F.
+        /^[\p{White_Space}\u001c-\u001f]+|[\p{White_Space}\u001c-\u001f]+$/gu,
+        '',
+      ),
+    ].length >= 10 &&
     [...task].length <= 6000 &&
-    !task.includes('\0')
+    !/[\0\p{Cs}]/u.test(task)
+  const tooLarge =
+    promptOnly &&
+    validTask &&
+    validName &&
+    new TextEncoder().encode(
+      JSON.stringify(promptPayload(sampleRequestId, name, task)),
+    ).byteLength > maxSetupBytes
+  const validSetup = validName && validTask && !tooLarge
   const minutes = Math.ceil(capability.publication_timeout_seconds / 60)
   const running = record?.status === 'creating'
   const recordId = record?.id
@@ -167,7 +206,7 @@ export function SpecBuildPanel({
       disabled ||
       trying ||
       !consent ||
-      (promptOnly && (!validTask || storageBlocked || (receipt && !notSaved)))
+      (promptOnly && (!validSetup || storageBlocked || (receipt && !notSaved)))
     )
       return
     const key = capability.requires_operator_key
@@ -194,7 +233,12 @@ export function SpecBuildPanel({
       let submittedReceipt: PromptReceipt | null = null
       if (promptOnly) {
         const id = receipt?.id ?? crypto.randomUUID()
-        const fingerprint = await promptFingerprint(id, spec.name, task)
+        const candidate = promptPayload(id, name, task)
+        const fingerprint = await promptFingerprint(
+          id,
+          candidate.name,
+          candidate.instructions,
+        )
         try {
           submittedReceipt = await withPromptReceiptLock(() => {
             const current = readPromptReceipt()
@@ -227,13 +271,7 @@ export function SpecBuildPanel({
         }
         setReceipt(submittedReceipt)
         setNotSaved(false)
-        payload = {
-          idempotency_key: id,
-          template_id: promptOnlyId,
-          name: spec.name,
-          instructions: task,
-          confirm_cost: true,
-        }
+        payload = candidate
         setPending(payload)
       } else if (!payload) {
         const draft = parseDraft(
@@ -369,6 +407,7 @@ export function SpecBuildPanel({
       setConsent(false)
       setPending(null)
       setNotSaved(false)
+      setName(nonPrintableName.test(spec.name) ? '' : spec.name)
       setTask(spec.instructions)
       setError('')
       setOpen(false)
@@ -486,7 +525,11 @@ export function SpecBuildPanel({
 
   return (
     <div className="spec-build" role="group" aria-label="Create this agent">
-      <h5>Create {spec.name} in Foundry</h5>
+      <h5>
+        {promptOnly
+          ? 'Review prompt-only setup'
+          : `Create ${spec.name} in Foundry`}
+      </h5>
       {promptOnly ? (
         <>
           <p>
@@ -495,11 +538,34 @@ export function SpecBuildPanel({
             sources. Use fictional inputs only.
           </p>
           <label className="spec-prompt-field">
+            Agent name
+            <input
+              type="text"
+              value={name}
+              readOnly={busy || !!pending}
+              aria-invalid={!validName}
+              aria-describedby={!validName ? `${validationId}-name` : undefined}
+              onChange={(event) => {
+                setName(event.target.value)
+                setConsent(false)
+              }}
+            />
+          </label>
+          {!validName && (
+            <p id={`${validationId}-name`}>
+              Enter an agent name with 1 to 80 printable characters on one line.
+            </p>
+          )}
+          <label className="spec-prompt-field">
             Task instructions
             <textarea
               rows={6}
               value={task}
               readOnly={busy || trying || !!pending}
+              aria-invalid={!validTask || tooLarge}
+              aria-describedby={
+                !validTask || tooLarge ? `${validationId}-task` : undefined
+              }
               onChange={(event) => {
                 setTask(event.target.value)
                 setConsent(false)
@@ -507,9 +573,15 @@ export function SpecBuildPanel({
             />
           </label>
           {!validTask && (
-            <p>
+            <p id={`${validationId}-task`}>
               Enter 10 to 6,000 characters of task instructions without null
-              characters.
+              characters or broken Unicode.
+            </p>
+          )}
+          {tooLarge && (
+            <p id={`${validationId}-task`}>
+              These instructions are too large to submit. Shorten them or remove
+              hidden control characters.
             </p>
           )}
           {promptTry && !pending && (
@@ -534,8 +606,8 @@ export function SpecBuildPanel({
           {receipt && !pending && (
             <p>
               This browser has an earlier request. Check its status before
-              creating. If no record is found, reopen the original spec and
-              enter the exact submitted instructions to retry it.
+              creating. If no record is found, enter the exact submitted name
+              and instructions to retry it.
             </p>
           )}
         </>
@@ -607,7 +679,9 @@ export function SpecBuildPanel({
             trying ||
             !consent ||
             (promptOnly &&
-              (!validTask || storageBlocked || (receipt !== null && !notSaved)))
+              (!validSetup ||
+                storageBlocked ||
+                (receipt !== null && !notSaved)))
           }
           onClick={() => void create()}
         >

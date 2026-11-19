@@ -28,7 +28,9 @@ then try it in Chat.**
 You can also start from **Chat**. When the Agent designer's spec card points to a template, **Create this agent here** runs the same steps (template assembly, configured access gate, cost confirmation, publish) inside the card, then offers **Chat with it**. The access gate normally requires the operator key; explicitly enabled private presenter mode does not.
 
 When no template matches and creation is enabled, choose **Review prompt-only
-agent**. Read and edit the exact task instructions. The Lab applies its fixed
+agent**. Review the display name and edit the exact task instructions. The Lab
+checks the name and instructions before saving a receipt or sending a request.
+It applies its fixed
 sample-data policy and does not attach tools, knowledge sources, document
 retrieval, or external integrations, even if the spec lists them. When library
 previews are enabled, **Try these instructions** sends one fictional sample
