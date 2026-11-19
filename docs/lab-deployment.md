@@ -751,51 +751,26 @@ Recovery doesn't reverse charges or requests already made.
 
 ## Deploy a new image from GitHub Actions
 
-The draft **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`)
-requires a manual dispatch from `main`, the exact reviewed main commit, a
-recorded current `registry/workbench@sha256:...` image, and confirmation that
-the staged rollout and recovery inventory have been reviewed. The checkbox
-is an operator acknowledgment, not an independent approval, and does **not**
-prove that platform, Lab, hosted-agent routes, recovery, or billing approvals
-are ready. **Validate** must also succeed for the exact commit.
+The **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`) now
+allows a single-operator, owner-authorized release. On 2026-11-19, the
+repository owner explicitly authorized this release path and powering the
+private runner. This is not independent review, and the workflow does not
+claim that the `lab-deploy` environment has a required reviewer. The deploy job
+runs only after `Validate` succeeds for the exact main commit and the manual
+dispatch comes from the repository owner on `main` through this exact workflow.
 
-The deployment job is disabled until an independent, fail-closed approval gate
-is designed and reviewed (#522). The current `lab-deploy` environment does not
-require a reviewer. Reusing the `terraform-state` environment solely for
-approval would need separate review and does not satisfy the proposed
-secret-free gate used by the runner-start design. Do not remove the disabled
-guard or dispatch a rollout as a substitute for that review.
+The existing rollout confirmations are still required: the exact reviewed
+source SHA, the recorded current immutable image digest, and the explicit
+confirmation checkbox. That checkbox is an operator acknowledgment, not
+independent approval, and does not prove platform, Lab, hosted-agent routes,
+recovery, or billing readiness. The deployment job keeps its existing
+live-image checks before registry push and app update, plus its guarded
+recovery/readback path. Owner authorization does not bypass those checks.
+Starting the private runner is a separate operation using its own distinct,
+one-shot workflow; this deployment workflow does not start it.
 
-One unapproved candidate is a separate `lab-image-release-review` environment
-with no secrets and no Azure identity. A read-only approval job would run on a
-GitHub-hosted runner behind that environment's independent reviewer gate. It
-would have no `secrets.*` references, checkout, third-party actions, or OIDC
-permission. To deliver the fixed reader without checkout, a tiny inline
-standard-library bootstrap in the protected workflow would fetch
-`.github/scripts/check_lab_image_approval.py` and its helper from the GitHub
-Contents API at the exact `github.sha`; it must validate each returned path,
-file type, encoding, and response before executing those files. That requires
-`contents: read`. The fetched reader gets only the explicitly scoped
-`GITHUB_TOKEN` and checks the in-progress `approval` job and recorded approval.
-No mutation or Azure credential acquisition occurs in this job.
-
-The private-runner `deploy` job would `need` the successful approval job, then
-validate the evidence again as the in-progress `deploy` job before obtaining
-Azure credentials or mutating the app. Both jobs must pass their trusted
-`github.*` context directly to the verifier, use job IDs that match the API job
-names (`approval` and `deploy`), and reject a context/job mismatch. The deploy
-job remains the only mutating job; recovery after it starts must not depend on
-GitHub being available.
-
-The candidate still requires separate review and approval before any
-environment or workflow change. Current job-token access to Actions run/job/
-approval evidence and all required environment policy endpoints is unproven.
-The existing token probe established HTTP 403 for environment-secret inventory,
-so strict mode cannot pass with those candidate permissions. The no-reference
-alternative requires separately verifiable owner acceptance and a review of
-the exact secret-free job; its in-code marker is not approval. Missing proof
-must block, never fall back to a PAT or weaker check. Concurrent administrator
-changes remain non-atomic.
+The standalone approval evidence reader described below is not wired into this
+owner-authorized release path and is not used to claim independent review.
 
 `.github/scripts/check_lab_image_approval.py` is an isolated authenticated
 evidence reader, not wired to deployment. Its strict default requires an
