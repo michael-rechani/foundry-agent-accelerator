@@ -32,7 +32,8 @@ def demo_policy(template_id):
     if template_id == PROMPT_ONLY_ID:
         return DEMO_POLICY.replace(
             "Use only supplied text and, when available, the fixed local sample-lookup tools.",
-            "Use only supplied text. You have no tools or external sources.",
+            "Use only supplied text. You have no tools or external sources. "
+            "Give the answer once; do not repeat the same content within a response.",
         )
     if template_id in {"medical-bill-reviewer", "benefits-renewal-helper"}:
         policy = DEMO_POLICY.replace(

@@ -30,12 +30,16 @@ You can also start from **Chat**. When the Agent designer's spec card points to 
 When no template matches and creation is enabled, choose **Review prompt-only
 agent**. Review the display name and edit the exact task instructions. The Lab
 checks the name and instructions before saving a receipt or sending a request.
-It applies its fixed
-sample-data policy and does not attach tools, knowledge sources, document
-retrieval, or external integrations, even if the spec lists them. When library
-previews are enabled, **Try these instructions** sends one fictional sample
-message to the model after a separate cost confirmation. This is a draft
-response, not a hosted agent or a readiness check.
+It applies its fixed sample-data policy, which tells the agent to answer once
+without repeating content. This policy does not change the stored task
+instructions or their length limit. The Lab does not attach tools, knowledge
+sources, document retrieval, or external integrations, even if the spec lists
+them. When library previews are enabled, **Try these instructions** sends one
+fictional sample message to the model after a separate cost confirmation. This
+is a draft response, not a hosted agent or a readiness check. Chat with a created
+prompt-only agent keeps one copy if two identical, substantial bulleted
+answers are concatenated with no separator. Short, partial, or nonidentical
+repetition is left as returned, and the cleanup event logs no answer content.
 
 Publishing uses the existing operator/access and cost gates and creates a shared
 Lab agent, not a private agent namespace. If a submission is uncertain, check

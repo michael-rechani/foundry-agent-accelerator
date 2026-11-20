@@ -22,6 +22,7 @@ from review_runs import ReviewRuns
 from design_loop import DesignLoop
 from agent_bundle import AgentBundles
 from agent_creation import CREATED_ID, AgentCreations, CreationSettings
+from agent_runtime.demo_tools import PROMPT_ONLY_ID
 from agent_scorecards import SCORECARDS
 from library_rules import DEPLOYMENT_NAME
 from library_preview import (
@@ -38,6 +39,7 @@ LOGGER = logging.getLogger("uvicorn.error")
 MAX_CHARACTERS = 60000
 MAX_HISTORY_TURNS = 10
 MAX_REUSED_SESSIONS = 512
+REPLY_BULLET = re.compile(r"^[ \t]*[-*+][ \t]+(\S[^\r\n]*)", re.MULTILINE)
 FOUNDRY_SCOPE = "https://ai.azure.com/.default"
 THREAD = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\Z")
 HISTORY_TIMEOUT_MS = 45000
@@ -387,6 +389,20 @@ def retry_after_seconds(problem):
         return 60
 
 
+def collapse_duplicate_prompt_reply(text):
+    """Keep one copy of a substantial list when two identical answers are glued together."""
+    stripped = text.strip()
+    midpoint, remainder = divmod(len(stripped), 2)
+    if remainder or midpoint < 120:
+        return text
+    half = stripped[:midpoint]
+    if half != stripped[midpoint:] or not REPLY_BULLET.match(half):
+        return text
+    if len({item.rstrip() for item in REPLY_BULLET.findall(half)}) < 3:
+        return text
+    return half
+
+
 class ChatReviews:
     """Stateless chat turns: POST /api/reviews admission, validation, and one bounded Foundry Responses call."""
 
@@ -495,6 +511,11 @@ class ChatReviews:
             receipts = execution_receipts(output, agent["tools"])
             if len(receipts) > 32 or any(len(receipt["output"] or "") > 100000 for receipt in receipts):
                 return self.error(request, 502, "response_too_large")
+            if agent.get("template_id") == PROMPT_ONLY_ID and CREATED_ID.fullmatch(agent["id"]):
+                cleaned = collapse_duplicate_prompt_reply(text)
+                if cleaned != text:
+                    LOGGER.info(json.dumps({"event": "workbench_prompt_reply_duplicate_collapsed"}))
+                    text = cleaned
             result = {"request_id": request_id, "status": status, "agent": agent["agent"],
                       "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000),
                       "usage": summarize_usage(usage)}
