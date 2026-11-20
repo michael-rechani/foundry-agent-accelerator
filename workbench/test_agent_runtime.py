@@ -173,6 +173,8 @@ class RuntimeTests(unittest.TestCase):
         options = constructor.call_args.kwargs
         self.assertEqual(options["tools"], [])
         self.assertEqual(options["instructions"], demo_policy("prompt-only") + reviewed)
+        self.assertIn("Give the answer once; do not repeat the same content within a response.",
+                      options["instructions"][:-len(reviewed)])
         credential.get_token.assert_not_called()
 
     def test_real_sdk_hosted_requests_respect_encrypted_reasoning_opt_in(self):

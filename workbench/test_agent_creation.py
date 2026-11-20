@@ -14,13 +14,40 @@ from agent_creation import AgentCreations, CreationSettings
 from agent_publisher import PublicationError
 from agent_templates import TEMPLATES
 from log_capture import CapturedLabLogs
-from app import Settings, create_app
+from app import Settings, collapse_duplicate_prompt_reply, create_app
 
 
 OPERATOR_KEY = "fictional-unit-test-operator-key-not-a-real-secret"
 ORIGIN = "https://lab.test"
 ENDPOINT = "https://fictional.services.ai.azure.com/api/projects/lab"
 KEY_HASH = hashlib.sha256(OPERATOR_KEY.encode()).hexdigest()
+FIVE_BULLET_REPLY = (
+    "- The fictional library opens at 8:00 on Monday.\n"
+    "- The front desk will answer visitor questions.\n"
+    "- The upstairs meeting room remains closed.\n"
+    "- The sample notice gives no reopening date.\n"
+    "- Visitors can still use the ground-floor reading room."
+)
+
+
+class PromptReplyTests(unittest.TestCase):
+    def test_exact_whole_bullet_list_is_collapsed(self):
+        self.assertEqual(collapse_duplicate_prompt_reply(" \n" + FIVE_BULLET_REPLY * 2 + "\t"), FIVE_BULLET_REPLY)
+
+    def test_other_repetition_and_whitespace_are_preserved(self):
+        short_list = "- One distinct topic\n- Another distinct topic\n- A third distinct topic."
+        few_distinct_bullets = ("- " + "x" * 60 + "\n") * 3 + "- A different line."
+        for text in (
+            " \n" + FIVE_BULLET_REPLY + "\t",
+            short_list * 2,
+            few_distinct_bullets * 2,
+            "A long sentence with no list structure. " * 8,
+            FIVE_BULLET_REPLY + "\n\n" + FIVE_BULLET_REPLY,
+            FIVE_BULLET_REPLY + FIVE_BULLET_REPLY.replace("Monday", "Friday"),
+            FIVE_BULLET_REPLY + "\n- The sample notice gives no reopening date.",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(collapse_duplicate_prompt_reply(text), text)
 
 
 class MemoryStore:
@@ -182,6 +209,28 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ready["agent"]["tools"], {})
         self.assertEqual(ready["instructions"], self.body["instructions"])
         self.assertEqual([operation for operation, _ in self.publisher.calls], ["create", "resume"])
+
+    async def test_prompt_only_chat_returns_one_copy_of_an_exact_repeated_answer(self):
+        self.body["template_id"] = "prompt-only"
+        record = await self.ready()
+        self.gateway.review.return_value = ("completed", FIVE_BULLET_REPLY * 2, [])
+        with self.assertLogs("uvicorn.error", level="INFO") as logs:
+            response = await self.client.post("/api/reviews", json={"agent_id": record["id"], "input": "Fictional notice."})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["text"], FIVE_BULLET_REPLY)
+        self.assertEqual(response.json()["receipts"], [])
+        self.gateway.review.assert_awaited_once()
+        events = [json.loads(entry.getMessage()) for entry in logs.records
+                  if "workbench_prompt_reply_duplicate_collapsed" in entry.getMessage()]
+        self.assertEqual(events, [{"event": "workbench_prompt_reply_duplicate_collapsed"}])
+
+    async def test_created_template_chat_preserves_the_same_exact_repetition(self):
+        record = await self.ready()
+        repeated = FIVE_BULLET_REPLY * 2
+        self.gateway.review.return_value = ("completed", repeated, [])
+        response = await self.client.post("/api/reviews", json={"agent_id": record["id"], "input": "Fictional notice."})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["text"], repeated)
 
     async def test_hosted_reasoning_setting_is_snapshotted_across_retries_and_resume(self):
         settings = replace(self.settings, creation=replace(
